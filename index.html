@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Toolbox de Ingeniería Mecánica</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .card { @apply bg-white p-6 rounded-lg shadow-md mb-6 border border-gray-200; }
+        .input-group { @apply flex flex-col mb-4; }
+        label { @apply text-sm font-semibold text-gray-700 mb-1; }
+        input, select { @apply border border-gray-300 rounded px-3 py-2 focus:ring-2 focus:ring-blue-500 outline-none; }
+        .result-val { @apply font-mono text-blue-700 font-bold; }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+
+    <nav class="bg-slate-800 text-white p-4 shadow-lg">
+        <div class="container mx-auto flex justify-between items-center">
+            <h1 class="text-xl font-bold tracking-tight">⚙️ MECH-TOOLBOX</h1>
+            <span class="text-sm text-slate-400">Normas y Cálculos de Ingeniería</span>
+        </div>
+    </nav>
+
+    <main class="container mx-auto p-4 md:p-8">
+        
+        <section id="chaveteros" class="card">
+            <div class="flex items-center mb-6 border-b pb-2">
+                <h2 class="text-2xl font-bold text-gray-800">Cálculo de Chaveteros (DIN 6885)</h2>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div>
+                    <h3 class="text-lg font-semibold mb-4 text-slate-600 uppercase text-sm tracking-wider">Parámetros de Entrada</h3>
+                    
+                    <div class="input-group">
+                        <label for="shaft-diameter">Diámetro del Eje (d) [mm]</label>
+                        <input type="number" id="shaft-diameter" placeholder="Ej: 25" step="0.1">
+                    </div>
+
+                    <div class="input-group">
+                        <label for="fit-type">Tipo de Ajuste (Tolerancia en b)</label>
+                        <select id="fit-type">
+                            <option value="N9">Ajuste Fijo (N9)</option>
+                            <option value="P9">Ajuste con Interferencia (P9)</option>
+                            <option value="Js9">Ajuste Deslizable (Js9)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="bg-blue-50 p-6 rounded-lg border border-blue-100">
+                    <h3 class="text-lg font-semibold mb-4 text-blue-800 uppercase text-sm tracking-wider">Dimensiones Resultantes</h3>
+                    
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="text-sm">Chaveta (b x h):</div>
+                        <div class="result-val" id="res-bh">-</div>
+
+                        <div class="text-sm">Ancho Chavetero (b):</div>
+                        <div class="result-val" id="res-b">-</div>
+
+                        <div class="text-sm">Prof. Eje (t1):</div>
+                        <div class="result-val" id="res-t1">-</div>
+
+                        <div class="text-sm">Prof. Cubo (t2):</div>
+                        <div class="result-val" id="res-t2">-</div>
+
+                        <div class="text-sm border-t pt-2 mt-2">Tolerancia b (Eje):</div>
+                        <div class="result-val border-t pt-2 mt-2" id="res-tol-shaft">-</div>
+
+                        <div class="text-sm">Tolerancia b (Cubo):</div>
+                        <div class="result-val" id="res-tol-hub">-</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center text-gray-400">
+            + Añadir nueva sección de cálculo (Normas ISO, Ajustes y Tolerancias, etc.)
+        </section>
+
+    </main>
+
+    <script>
+        // Base de datos simplificada de la tabla DIN 6885 (imagen adjunta)
+        const din6885Data = [
+            { min: 6, max: 8, b: 2, h: 2, t1: 1.2, t2: 1.0, tolT1: 0.1, tolT2: 0.1 },
+            { min: 8, max: 10, b: 3, h: 3, t1: 1.8, t2: 1.4, tolT1: 0.1, tolT2: 0.1 },
+            { min: 10, max: 12, b: 4, h: 4, t1: 2.5, t2: 1.8, tolT1: 0.1, tolT2: 0.1 },
+            { min: 12, max: 17, b: 5, h: 5, t1: 3.0, t2: 2.3, tolT1: 0.1, tolT2: 0.1 },
+            { min: 17, max: 22, b: 6, h: 6, t1: 3.5, t2: 2.8, tolT1: 0.1, tolT2: 0.1 },
+            { min: 22, max: 30, b: 8, h: 7, t1: 4.0, t2: 3.3, tolT1: 0.2, tolT2: 0.2 },
+            { min: 30, max: 38, b: 10, h: 8, t1: 5.0, t2: 3.3, tolT1: 0.2, tolT2: 0.2 },
+            { min: 38, max: 44, b: 12, h: 8, t1: 5.0, t2: 3.3, tolT1: 0.2, tolT2: 0.2 },
+            { min: 44, max: 50, b: 14, h: 9, t1: 5.5, t2: 3.8, tolT1: 0.2, tolT2: 0.2 },
+            { min: 50, max: 58, b: 16, h: 10, t1: 6.0, t2: 4.3, tolT1: 0.2, tolT2: 0.2 }
+        ];
+
+        // Tolerancias simplificadas para b según tipo de ajuste
+        const tolerances = {
+            "N9": { shaft: "0 / -0.036", hub: "Js9: ±0.018" }, // Ejemplo para rango medio
+            "P9": { shaft: "-0.015 / -0.051", hub: "P9: -0.015 / -0.051" },
+            "Js9": { shaft: "±0.015", hub: "Js9: ±0.018" }
+        };
+
+        const inputD = document.getElementById('shaft-diameter');
+        const inputFit = document.getElementById('fit-type');
+
+        function calculate() {
+            const d = parseFloat(inputD.value);
+            const fit = inputFit.value;
+            
+            if (!d) return;
+
+            const row = din6885Data.find(r => d > r.min && d <= r.max);
+
+            if (row) {
+                document.getElementById('res-bh').innerText = `${row.b} x ${row.h} mm`;
+                document.getElementById('res-b').innerText = `${row.b} mm`;
+                document.getElementById('res-t1').innerText = `${row.t1} (+${row.tolT1})`;
+                document.getElementById('res-t2').innerText = `${row.t2} (+${row.tolT2})`;
+                
+                // En una app real, estas tolerancias variarían dinámicamente según el valor de b
+                document.getElementById('res-tol-shaft').innerText = fit; 
+                document.getElementById('res-tol-hub').innerText = fit === "N9" ? "H9/Js9" : fit;
+            } else {
+                document.getElementById('res-bh').innerText = "Fuera de rango tabla";
+            }
+        }
+
+        inputD.addEventListener('input', calculate);
+        inputFit.addEventListener('change', calculate);
+    </script>
+</body>
+</html>
